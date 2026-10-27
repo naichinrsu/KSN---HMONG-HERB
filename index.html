@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สารานุกรมสมุนไพรพื้นบ้านชาวม้ง - หมู่ 5 บ้านขุนสาใน</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Sarabun & Prompt -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #f4f7f4;
+    }
+    .font-sarabun {
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    /* ==========================================
+       🖨️ ตั้งค่า CSS สำหรับโหมดพิมพ์รูปเล่มสารานุกรม A4
+       ========================================== */
+    @media screen {
+      #print-book-container {
+        display: none;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+      body {
+        background: #ffffff !important;
+        font-family: 'Sarabun', sans-serif !important;
+        color: #111827;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* ซ่อนหน้าเว็บปกติทั้งหมดเวลาสั่งปริ้น */
+      #web-app-container, #herb-modal, #loading-overlay {
+        display: none !important;
+      }
+      /* แสดงเฉพาะเล่มสารานุกรม A4 */
+      #print-book-container {
+        display: block !important;
+      }
+      .a4-page {
+        width: 100%;
+        height: 270mm; /* ความสูงพอดี 1 หน้า A4 หักขอบ */
+        page-break-after: always;
+        break-after: page;
+        position: relative;
+        box-sizing: border-box;
+        border: 2px solid #065f46;
+        border-radius: 8px;
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .a4-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body class="text-gray-800">
+
+  <!-- ⏳ Loading Overlay -->
+  <div id="loading-overlay" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white px-6 py-5 rounded-2xl shadow-xl flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+      <p id="loading-text" class="text-sm font-medium text-gray-700">กำลังโหลดข้อมูลสมุนไพร...</p>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       🌐 ส่วนหน้าเว็บหลัก (Web App Container)
+       ========================================== -->
+  <div id="web-app-container" class="min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-emerald-800 text-white shadow-lg sticky top-0 z-30">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-xl shadow-inner">
+            🌿
+          </div>
+          <div>
+            <h1 class="text-lg md:text-xl font-bold leading-tight">คลังสมุนไพรพื้นบ้านชาวม้ง</h1>
+            <p id="village-subtitle" class="text-xs text-emerald-200">หมู่ 5 บ้านขุนสาใน ต.โป่งสา อ.ปาย จ.แม่ฮ่องสอน</p>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex items-center gap-2">
+          <button onclick="switchTab('catalog')" id="btn-tab-catalog" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-emerald-900 shadow-sm transition">
+            📖 ดูสมุนไพร
+          </button>
+          <button onclick="printEncyclopedia(null)" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-slate-900 shadow-sm transition flex items-center gap-1">
+            🖨️ พิมพ์เล่มสารานุกรม (A4)
+          </button>
+          <button onclick="switchTab('admin')" id="btn-tab-admin" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-700 hover:bg-emerald-600 text-white transition">
+            ⚙️ แอดมิน
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+
+      <!-- ==========================================
+           1️⃣ แท็บที่ 1: หน้าแคตตาล็อกสำหรับชาวบ้าน
+           ========================================== -->
+      <section id="view-catalog" class="space-y-6">
+        
+        <!-- ช่องค้นหา -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-emerald-100 flex flex-col md:flex-row gap-3 items-center justify-between">
+          <div class="relative w-full md:w-2/3">
+            <input type="text" id="search-input" oninput="renderCatalog()" placeholder="ค้นหาชื่อสมุนไพรม้ง, ชื่อไทย, หรืออาการ เช่น ปวดเมื่อย, แผลสด, ไข้..." 
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none text-sm">
+            <span class="absolute left-3.5 top-3 text-gray-400">🔍</span>
+          </div>
+          <div class="text-xs text-gray-500 w-full md:w-auto text-right">
+            พบสมุนไพรทั้งหมด <span id="herb-count" class="font-bold text-emerald-700 text-sm">0</span> ชนิด
+          </div>
+        </div>
+
+        <!-- ปุ่มเลือกหมวดหมู่สรรพคุณ -->
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2.5">เลือกดูตามหมวดสรรพคุณ:</h2>
+          <div id="category-pills" class="flex flex-wrap gap-2">
+            <!-- ปุ่มหมวดหมู่จะถูกสร้างด้วย JS -->
+          </div>
+        </div>
+
+        <!-- ตารางการ์ดสมุนไพร -->
+        <div id="herbs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- การ์ดสมุนไพรจะถูกสร้างด้วย JS -->
+        </div>
+      </section>
+
+      <!-- ==========================================
+           2️⃣ แท็บที่ 2: หน้าหลังบ้านแอดมิน (Login + Form)
+           ========================================== -->
+      <section id="view-admin" class="hidden space-y-6">
+
+        <!-- กล่องใส่รหัส PIN ก่อนเข้าหน้าแอดมิน -->
+        <div id="admin-login-box" class="max-w-md mx-auto bg-white p-6 rounded-2xl shadow-md border border-gray-200 text-center space-y-4 my-10">
+          <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto text-2xl">🔒</div>
+          <h2 class="text-lg font-bold text-gray-800">เข้าสู่ระบบจัดการข้อมูลสมุนไพร</h2>
+          <p class="text-xs text-gray-500">กรอกรหัสผ่านแอดมิน (ADMIN_PIN ที่ตั้งไว้ใน Google Sheets)</p>
+          <input type="password" id="admin-pin-input" placeholder="กรอกรหัสผ่าน..." 
+            class="w-full px-4 py-2.5 text-center text-lg tracking-widest rounded-xl border border-gray-300 focus:border-emerald-600 outline-none">
+          <button onclick="loginAdmin()" class="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-xl shadow transition">
+            เข้าสู่ระบบ
+          </button>
+        </div>
+
+        <!-- พื้นที่จัดการข้อมูลของแอดมิน (แสดงเมื่อใส่ PIN ถูกแล้ว) -->
+        <div id="admin-panel-box" class="hidden space-y-6">
+          
+          <div class="flex flex-wrap items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+            <div>
+              <h2 class="font-bold text-emerald-900">ระบบบันทึกและแก้ไขข้อมูลสมุนไพร</h2>
+              <p class="text-xs text-emerald-700">รูปที่เลือกจะถูกย่อขนาดอัตโนมัติและอัปโหลดเข้า Google Drive ทันทีที่กดบันทึก</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="resetAdminForm()" class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50">
+                + เพิ่มสมุนไพรตัวใหม่
+              </button>
+              <button onclick="logoutAdmin()" class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-medium hover:bg-red-200">
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+
+          <!-- ฟอร์มกรอกข้อมูลสมุนไพร -->
+          <form id="herb-form" onsubmit="saveHerbData(event)" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-6">
+            <div class="flex items-center justify-between border-b pb-3">
+              <h3 id="form-title" class="text-base font-bold text-emerald-800">➕ เพิ่มข้อมูลสมุนไพรใหม่</h3>
+              <span id="display-herb-id" class="text-xs font-mono bg-gray-100 px-2.5 py-1 rounded text-gray-600">สร้างรหัสอัตโนมัติ (KSN-XXX)</span>
+            </div>
+
+            <input type="hidden" id="f-herb-id">
+
+            <!-- ส่วนที่ 1: ชื่อและการจำแนก -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ชื่อภาษาม้ง (คำอ่านไทย) *</label>
+                <input type="text" id="f-name-hmong-th" required placeholder="เช่น ต๋าวเจ้ง, จ่อล่อ..." class="w-full px-3 py-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ชื่อภาษาม้ง (อักษรโรมัน RPA)</label>
+                <input type="text" id="f-name-hmong-rpa" placeholder="เช่น Tshuaj..." class="w-full px-3 py-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ชื่อภาษาไทย / คำเมือง</label>
+                <input type="text" id="f-name-thai" placeholder="เช่น สาบเสือ, ไพล..." class="w-full px-3 py-2 border rounded-lg text-sm">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">หมวดสรรพคุณหลัก *</label>
+                <select id="f-category-main" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ลักษณะพืช (Plant Type)</label>
+                <select id="f-plant-type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                  <option value="ไม้ล้มลุก">ไม้ล้มลุก</option>
+                  <option value="ไม้พุ่ม">ไม้พุ่ม</option>
+                  <option value="ไม้เถา/ไม้เลื้อย">ไม้เถา / ไม้เลื้อย</option>
+                  <option value="พืชหัว/เหง้าใต้ดิน">พืชหัว / เหง้าใต้ดิน</option>
+                  <option value="ไม้ยืนต้น">ไม้ยืนต้น</option>
+                  <option value="เฟิร์น/มอส/อื่นๆ">เฟิร์น / อื่นๆ</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ส่วนที่ใช้ทำยา *</label>
+                <input type="text" id="f-parts-used" required placeholder="เช่น ราก, ใบสด, หัวใต้ดิน, ทั้งต้น" class="w-full px-3 py-2 border rounded-lg text-sm">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1">คำค้นหาอาการย่อย (คั่นด้วยลูกน้ำ ,)</label>
+              <input type="text" id="f-symptom-tags" placeholder="เช่น ห้ามเลือด, แผลสด, ปวดหลัง, อยู่ไฟหลังคลอด" class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+
+            <!-- ส่วนที่ 2: วิธีใช้และข้อควรระวัง -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">สรรพคุณ และ วิธีการนำไปใช้ *</label>
+                <textarea id="f-how-to-use" rows="4" required placeholder="อธิบายวิธีเตรียมยา เช่น นำใบสด 1 กำมือมาตำพอกบริเวณแผล หรือนำรากต้มน้ำดื่มเช้า-เย็น..." class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-red-700 mb-1">⚠️ ข้อควรระวัง / ข้อห้ามใช้ (ถ้ามี)</label>
+                <textarea id="f-precautions" rows="4" placeholder="เช่น สตรีมีครรภ์ห้ามรับประทาน, ใช้ภายนอกเท่านั้น ห้ามกลืนกิน..." class="w-full px-3 py-2 border border-red-200 bg-red-50/30 rounded-lg text-sm"></textarea>
+              </div>
+            </div>
+
+            <!-- ส่วนที่ 3: อัปโหลดรูปภาพแยก 4 ส่วน -->
+            <div class="border-t pt-4">
+              <label class="block text-sm font-bold text-gray-800 mb-3">📸 รูปภาพประกอบ 4 มุม (ถ่ายจากมือถือหรือเลือกไฟล์ภาพ)</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- 1. รูปเต็มต้น -->
+                <div class="border rounded-xl p-3 bg-gray-50 flex flex-col gap-2">
+                  <span class="text-xs font-bold text-emerald-800">1. ภาพรวมทั้งต้น (รูปหลัก)</span>
+                  <img id="prev-overall" src="https://placehold.co/400x300/e2e8f0/64748b?text=No+Image" class="w-full h-32 object-cover rounded-lg border bg-white">
+                  <input type="file" accept="image/*" onchange="handleFileSelect(event, 'Overall')" class="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-100 file:text-emerald-800">
+                  <input type="hidden" id="url-overall">
+                </div>
+
+                <!-- 2. รูปใบ -->
+                <div class="border rounded-xl p-3 bg-gray-50 flex flex-col gap-2">
+                  <span class="text-xs font-bold text-emerald-800">2. ภาพใบ (หน้าใบ/หลังใบ)</span>
+                  <img id="prev-leaf" src="https://placehold.co/400x300/e2e8f0/64748b?text=No+Image" class="w-full h-32 object-cover rounded-lg border bg-white">
+                  <input type="file" accept="image/*" onchange="handleFileSelect(event, 'Leaf')" class="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-100 file:text-emerald-800">
+                  <input type="hidden" id="url-leaf">
+                </div>
+
+                <!-- 3. รูปลำต้น/ราก/หัว -->
+                <div class="border rounded-xl p-3 bg-gray-50 flex flex-col gap-2">
+                  <span class="text-xs font-bold text-emerald-800">3. ภาพลำต้น / ราก / หัว</span>
+                  <img id="prev-stemroot" src="https://placehold.co/400x300/e2e8f0/64748b?text=No+Image" class="w-full h-32 object-cover rounded-lg border bg-white">
+                  <input type="file" accept="image/*" onchange="handleFileSelect(event, 'Stem_Root')" class="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-100 file:text-emerald-800">
+                  <input type="hidden" id="url-stemroot">
+                </div>
+
+                <!-- 4. รูปดอก/ผล -->
+                <div class="border rounded-xl p-3 bg-gray-50 flex flex-col gap-2">
+                  <span class="text-xs font-bold text-emerald-800">4. ภาพดอก / ผล / เมล็ด</span>
+                  <img id="prev-flowerfruit" src="https://placehold.co/400x300/e2e8f0/64748b?text=No+Image" class="w-full h-32 object-cover rounded-lg border bg-white">
+                  <input type="file" accept="image/*" onchange="handleFileSelect(event, 'Flower_Fruit')" class="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-100 file:text-emerald-800">
+                  <input type="hidden" id="url-flowerfruit">
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ส่วนที่ 4: ผู้ให้ข้อมูลและสถานะการพิมพ์ -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">ผู้ให้ข้อมูลภูมิปัญญา (ปราชญ์ชาวบ้าน / หมอยา)</label>
+                <input type="text" id="f-informant" placeholder="เช่น แม่เฒ่า..., พ่อหลวง..." class="w-full px-3 py-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">สถานะการนำเข้าเล่มสารานุกรม A4</label>
+                <select id="f-book-status" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                  <option value="พร้อมพิมพ์ลงเล่ม">✅ พร้อมพิมพ์ลงเล่มสารานุกรม</option>
+                  <option value="รออนุมัติ/กำลังเก็บข้อมูล">⏳ รออนุมัติ / กำลังเก็บข้อมูลเพิ่ม</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" onclick="resetAdminForm()" class="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium hover:bg-gray-50">
+                ล้างฟอร์ม
+              </button>
+              <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold shadow-md transition">
+                💾 บันทึกข้อมูลสมุนไพร
+              </button>
+            </div>
+          </form>
+
+          <!-- ตารางรายการสมุนไพรสำหรับแอดมินกดแก้ไข/ลบ -->
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h3 class="text-base font-bold text-gray-800 mb-4">📋 รายการสมุนไพรทั้งหมดในฐานข้อมูล</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                    <th class="py-2.5 px-3">รหัส</th>
+                    <th class="py-2.5 px-3">ชื่อม้ง (ไทย / RPA)</th>
+                    <th class="py-2.5 px-3">ชื่อไทย</th>
+                    <th class="py-2.5 px-3">หมวดสรรพคุณ</th>
+                    <th class="py-2.5 px-3">สถานะพิมพ์เล่ม</th>
+                    <th class="py-2.5 px-3 text-right">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-table-body" class="divide-y">
+                  <!-- แถวข้อมูลสร้างด้วย JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==========================================
+       🔍 Modal ดูรายละเอียดสมุนไพรรายตัว (Popup)
+       ========================================== -->
+  <div id="herb-modal" class="fixed inset-0 bg-black/60 z-40 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 p-6 space-y-5">
+      <div class="flex items-start justify-between border-b pb-3">
+        <div>
+          <span id="m-id" class="text-xs font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">KSN-001</span>
+          <h2 id="m-title" class="text-2xl font-bold text-gray-900 mt-1">ชื่อสมุนไพร</h2>
+          <p id="m-subtitle" class="text-sm text-gray-600">ชื่อไทย: -</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="m-print-single-btn" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-lg text-xs font-bold">
+            🖨️ พิมพ์หน้านี้ (A4)
+          </button>
+          <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 font-bold">✕</button>
+        </div>
+      </div>
+
+      <!-- รูปทั้ง 4 มุมใน Modal -->
+      <div id="m-images" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100 text-xs">
+        <div><span class="font-bold text-emerald-900">หมวดสรรพคุณ:</span> <span id="m-cat"></span></div>
+        <div><span class="font-bold text-emerald-900">ลักษณะพืช:</span> <span id="m-type"></span></div>
+        <div><span class="font-bold text-emerald-900">ส่วนที่ใช้:</span> <span id="m-parts"></span></div>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <h4 class="font-bold text-emerald-800 mb-1">🍵 สรรพคุณและวิธีการนำไปใช้:</h4>
+          <p id="m-howto" class="bg-gray-50 p-3.5 rounded-xl border whitespace-pre-line leading-relaxed"></p>
+        </div>
+        <div id="m-precaution-box" class="hidden">
+          <h4 class="font-bold text-red-700 mb-1">⚠️ ข้อควรระวัง / ข้อห้ามใช้:</h4>
+          <p id="m-precaution" class="bg-red-50 text-red-900 p-3.5 rounded-xl border border-red-200 whitespace-pre-line"></p>
+        </div>
+      </div>
+
+      <div class="border-t pt-3 flex flex-wrap justify-between text-xs text-gray-500">
+        <span id="m-informant">ผู้ให้ข้อมูล: -</span>
+        <span id="m-updated">อัปเดตล่าสุด: -</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       📖 โครงสร้างเล่มสารานุกรม A4 (1 หน้า ต่อ 1 ชนิด)
+       แสดงเฉพาะตอนกดสั่ง Print เท่านั้น
+       ========================================== -->
+  <div id="print-book-container"></div>
+
+  <!-- ==========================================
+       ⚡ JavaScript Logic ทั้งหมดของระบบ
+       ========================================== -->
+  <script>
+    // 🔗 URL API ของ Google Apps Script ที่เพิ่ง Deploy
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxAYQgb5npi_SB4COycZC3t52KnDVjWhnEOFrmx2D-jIqxu-N6S_hywQ5tBupFAEWbr/exec';
+
+    let allHerbs = [];
+    let allCategories = [];
+    let villageName = 'หมู่ 5 บ้านขุนสาใน ต.โป่งสา อ.ปาย จ.แม่ฮ่องสอน';
+    let selectedCategory = 'ALL';
+    let adminPin = sessionStorage.getItem('HERB_ADMIN_PIN') || '';
+
+    // เก็บข้อมูล Base64 ของรูป 4 มุมที่กำลังจะอัปโหลด
+    let pendingBase64 = {
+      Overall: '',
+      Leaf: '',
+      Stem_Root: '',
+      Flower_Fruit: ''
+    };
+
+    const PLACEHOLDER_IMG = 'https://placehold.co/600x450/e2e8f0/64748b?text=No+Image';
+
+    // เริ่มทำงานทันทีเมื่อเปิดหน้าเว็บ
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchDatabase();
+      if (adminPin) {
+        document.getElementById('admin-login-box').classList.add('hidden');
+        document.getElementById('admin-panel-box').classList.remove('hidden');
+      }
+    });
+
+    // ดึงข้อมูลทั้งหมดจาก Google Sheets
+    async function fetchDatabase() {
+      showLoading('กำลังดึงข้อมูลสมุนไพรจากฐานข้อมูล...');
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        if (data.status === 'success') {
+          allHerbs = data.herbs || [];
+          allCategories = data.categories || [];
+          if (data.villageName) {
+            villageName = data.villageName;
+            document.getElementById('village-subtitle').textContent = villageName;
+          }
+          renderCategories();
+          renderCatalog();
+          populateAdminCategorySelect();
+          renderAdminTable();
+        } else {
+          alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + data.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // สลับแท็บ หน้าดูสมุนไพร <-> หน้าแอดมิน
+    function switchTab(tab) {
+      const vCat = document.getElementById('view-catalog');
+      const vAdm = document.getElementById('view-admin');
+      const bCat = document.getElementById('btn-tab-catalog');
+      const bAdm = document.getElementById('btn-tab-admin');
+
+      if (tab === 'catalog') {
+        vCat.classList.remove('hidden');
+        vAdm.classList.add('hidden');
+        bCat.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-emerald-900 shadow-sm transition';
+        bAdm.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-700 hover:bg-emerald-600 text-white transition';
+      } else {
+        vCat.classList.add('hidden');
+        vAdm.classList.remove('hidden');
+        bAdm.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-emerald-900 shadow-sm transition';
+        bCat.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-700 hover:bg-emerald-600 text-white transition';
+      }
+    }
+
+    // สร้างปุ่มกดกรองตามหมวดหมู่สรรพคุณ
+    function renderCategories() {
+      const container = document.getElementById('category-pills');
+      let html = `
+        <button onclick="selectCategory('ALL')" 
+          class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${selectedCategory === 'ALL' ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 border hover:bg-emerald-50'}">
+          🌿 ทั้งหมด (${allHerbs.length})
+        </button>
+      `;
+
+      allCategories.forEach(cat => {
+        const count = allHerbs.filter(h => h.Category_Main === cat.Category_Name).length;
+        const isActive = selectedCategory === cat.Category_Name;
+        html += `
+          <button onclick="selectCategory('${cat.Category_Name}')" 
+            class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 ${isActive ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 border hover:bg-emerald-50'}">
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${cat.Color_Code || '#10B981'}"></span>
+            ${cat.Category_Name} (${count})
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function selectCategory(catName) {
+      selectedCategory = catName;
+      renderCategories();
+      renderCatalog();
+    }
+
+    // แสดงการ์ดสมุนไพรในหน้าแคตตาล็อก
+    function renderCatalog() {
+      const grid = document.getElementById('herbs-grid');
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+
+      const filtered = allHerbs.filter(h => {
+        const matchCat = selectedCategory === 'ALL' || h.Category_Main === selectedCategory;
+        const searchPool = `${h.Herb_ID} ${h.Name_Hmong_TH} ${h.Name_Hmong_RPA} ${h.Name_Thai} ${h.Symptom_Tags} ${h.How_To_Use}`.toLowerCase();
+        const matchQuery = !query || searchPool.includes(query);
+        return matchCat && matchQuery;
+      });
+
+      document.getElementById('herb-count').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white p-12 rounded-2xl border text-center text-gray-500">
+            <p class="text-lg font-semibold mb-1">ยังไม่มีข้อมูลสมุนไพรในหมวดนี้</p>
+            <p class="text-xs">กดที่เมนู "⚙️ แอดมิน" ด้านบนเพื่อเริ่มเพิ่มข้อมูลสมุนไพรตัวแรกได้เลย</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(h => {
+        const coverImg = h.Img_Overall || h.Img_Leaf || PLACEHOLDER_IMG;
+        const rpaText = h.Name_Hmong_RPA ? `<span class="text-emerald-700 font-mono text-xs">(${h.Name_Hmong_RPA})</span>` : '';
+        const tags = (h.Symptom_Tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+        return `
+          <div onclick="openHerbModal('${h.Herb_ID}')" class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer flex flex-col">
+            <div class="relative h-48 bg-gray-100">
+              <img src="${coverImg}" alt="${h.Name_Hmong_TH}" class="w-full h-full object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+              <span class="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-sm text-white text-[11px] font-mono px-2 py-0.5 rounded">
+                ${h.Herb_ID}
+              </span>
+              <span class="absolute bottom-2.5 right-2.5 bg-emerald-700 text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full shadow">
+                ${h.Category_Main || 'ทั่วไป'}
+              </span>
+            </div>
+            <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+              <div>
+                <h3 class="text-lg font-bold text-gray-900 leading-snug">
+                  ${h.Name_Hmong_TH || 'ไม่ระบุชื่อม้ง'} ${rpaText}
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5">ชื่อไทย/คำเมือง: <strong class="text-gray-700">${h.Name_Thai || '-'}</strong></p>
+                <p class="text-xs text-gray-600 mt-2 line-clamp-2">${h.How_To_Use || ''}</p>
+              </div>
+              <div class="pt-2 border-t flex flex-wrap gap-1">
+                ${tags.slice(0, 3).map(t => `<span class="text-[11px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md">#${t}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // เปิดดูรายละเอียดสมุนไพรรายตัวใน Modal
+    function openHerbModal(herbId) {
+      const h = allHerbs.find(item => item.Herb_ID === herbId);
+      if (!h) return;
+
+      document.getElementById('m-id').textContent = h.Herb_ID;
+      document.getElementById('m-title').textContent = `${h.Name_Hmong_TH || ''} ${h.Name_Hmong_RPA ? '(' + h.Name_Hmong_RPA + ')' : ''}`;
+      document.getElementById('m-subtitle').textContent = `ชื่อไทย / คำเมือง: ${h.Name_Thai || '-'}`;
+      document.getElementById('m-cat').textContent = h.Category_Main || '-';
+      document.getElementById('m-type').textContent = h.Plant_Type || '-';
+      document.getElementById('m-parts').textContent = h.Parts_Used || '-';
+      document.getElementById('m-howto').textContent = h.How_To_Use || '-';
+
+      const pBox = document.getElementById('m-precaution-box');
+      if (h.Precautions && h.Precautions.trim() !== '') {
+        pBox.classList.remove('hidden');
+        document.getElementById('m-precaution').textContent = h.Precautions;
+      } else {
+        pBox.classList.add('hidden');
+      }
+
+      document.getElementById('m-informant').textContent = `ผู้ให้ข้อมูลภูมิปัญญา: ${h.Informant || '-'}`;
+      document.getElementById('m-updated').textContent = `บันทึกเมื่อ: ${h.Updated_At || '-'}`;
+
+      // แสดงรูป 4 มุม
+      const imgList = [
+        { label: '1. ภาพทั้งต้น', url: h.Img_Overall },
+        { label: '2. ภาพใบ', url: h.Img_Leaf },
+        { label: '3. ลำต้น/ราก/หัว', url: h.Img_Stem_Root },
+        { label: '4. ดอก/ผล/เมล็ด', url: h.Img_Flower_Fruit }
+      ];
+      document.getElementById('m-images').innerHTML = imgList.map(img => `
+        <div class="border rounded-xl overflow-hidden bg-gray-50">
+          <a href="${img.url || '#'}" target="_blank">
+            <img src="${img.url || PLACEHOLDER_IMG}" class="w-full h-32 object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+          </a>
+          <div class="text-[11px] font-semibold text-center py-1 bg-white text-gray-700">${img.label}</div>
+        </div>
+      `).join('');
+
+      // ปุ่มสั่งพิมพ์เฉพาะสมุนไพรตัวนี้
+      document.getElementById('m-print-single-btn').onclick = () => printEncyclopedia(h.Herb_ID);
+
+      document.getElementById('herb-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('herb-modal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // 🔐 ระบบแอดมิน (Login + ย่อรูป + บันทึกข้อมูล)
+    // ==========================================
+
+    async function loginAdmin() {
+      const pinInput = document.getElementById('admin-pin-input').value.trim();
+      if (!pinInput) return alert('กรุณากรอกรหัสผ่าน');
+
+      showLoading('กำลังตรวจสอบรหัสผ่านแอดมิน...');
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'verifyPin', pin: pinInput })
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+          adminPin = pinInput;
+          sessionStorage.setItem('HERB_ADMIN_PIN', adminPin);
+          document.getElementById('admin-login-box').classList.add('hidden');
+          document.getElementById('admin-panel-box').classList.remove('hidden');
+        } else {
+          alert(result.message || 'รหัสผ่านไม่ถูกต้อง');
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function logoutAdmin() {
+      adminPin = '';
+      sessionStorage.removeItem('HERB_ADMIN_PIN');
+      document.getElementById('admin-pin-input').value = '';
+      document.getElementById('admin-login-box').classList.remove('hidden');
+      document.getElementById('admin-panel-box').classList.add('hidden');
+    }
+
+    function populateAdminCategorySelect() {
+      const select = document.getElementById('f-category-main');
+      select.innerHTML = allCategories.map(c => `<option value="${c.Category_Name}">${c.Category_Name}</option>`).join('');
+    }
+
+    // ย่อขนาดรูปด้วย HTML5 Canvas ก่อนแปลงเป็น Base64 ส่งเข้า Drive
+    function handleFileSelect(event, partKey) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const MAX_WIDTH = 1000;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+          pendingBase64[partKey] = compressedBase64;
+
+          // อัปเดตรูปตัวอย่างทันที
+          const previewIdMap = {
+            'Overall': 'prev-overall',
+            'Leaf': 'prev-leaf',
+            'Stem_Root': 'prev-stemroot',
+            'Flower_Fruit': 'prev-flowerfruit'
+          };
+          document.getElementById(previewIdMap[partKey]).src = compressedBase64;
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // บันทึกข้อมูลสมุนไพร (เพิ่มใหม่ หรือ แก้ไข)
+    async function saveHerbData(event) {
+      event.preventDefault();
+      showLoading('กำลังอัปโหลดรูปเข้า Google Drive และบันทึกข้อมูล...');
+
+      const payloadData = {
+        Herb_ID: document.getElementById('f-herb-id').value.trim(),
+        Name_Hmong_TH: document.getElementById('f-name-hmong-th').value.trim(),
+        Name_Hmong_RPA: document.getElementById('f-name-hmong-rpa').value.trim(),
+        Name_Thai: document.getElementById('f-name-thai').value.trim(),
+        Category_Main: document.getElementById('f-category-main').value,
+        Symptom_Tags: document.getElementById('f-symptom-tags').value.trim(),
+        Plant_Type: document.getElementById('f-plant-type').value,
+        Parts_Used: document.getElementById('f-parts-used').value.trim(),
+        How_To_Use: document.getElementById('f-how-to-use').value.trim(),
+        Precautions: document.getElementById('f-precautions').value.trim(),
+        Informant: document.getElementById('f-informant').value.trim(),
+        Book_Status: document.getElementById('f-book-status').value,
+        // ลิงก์รูปเดิม
+        Img_Overall: document.getElementById('url-overall').value,
+        Img_Leaf: document.getElementById('url-leaf').value,
+        Img_Stem_Root: document.getElementById('url-stemroot').value,
+        Img_Flower_Fruit: document.getElementById('url-flowerfruit').value,
+        // รูปใหม่แบบ Base64 (ถ้ามีการเลือกไฟล์ใหม่)
+        Img_Overall_Base64: pendingBase64.Overall,
+        Img_Leaf_Base64: pendingBase64.Leaf,
+        Img_Stem_Root_Base64: pendingBase64.Stem_Root,
+        Img_Flower_Fruit_Base64: pendingBase64.Flower_Fruit
+      };
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'saveHerb',
+            pin: adminPin,
+            data: payloadData
+          })
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+          alert(result.message);
+          resetAdminForm();
+          await fetchDatabase();
+        } else {
+          alert('เกิดข้อผิดพลาด: ' + result.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // ดึงข้อมูลเดิมขึ้นมาใส่ฟอร์มเพื่อแก้ไข
+    function editHerb(herbId) {
+      const h = allHerbs.find(item => item.Herb_ID === herbId);
+      if (!h) return;
+
+      resetAdminForm();
+      document.getElementById('form-title').textContent = `✏️ แก้ไขข้อมูลสมุนไพร (${h.Herb_ID})`;
+      document.getElementById('display-herb-id').textContent = h.Herb_ID;
+      document.getElementById('f-herb-id').value = h.Herb_ID;
+      document.getElementById('f-name-hmong-th').value = h.Name_Hmong_TH || '';
+      document.getElementById('f-name-hmong-rpa').value = h.Name_Hmong_RPA || '';
+      document.getElementById('f-name-thai').value = h.Name_Thai || '';
+      document.getElementById('f-category-main').value = h.Category_Main || '';
+      document.getElementById('f-symptom-tags').value = h.Symptom_Tags || '';
+      document.getElementById('f-plant-type').value = h.Plant_Type || 'ไม้ล้มลุก';
+      document.getElementById('f-parts-used').value = h.Parts_Used || '';
+      document.getElementById('f-how-to-use').value = h.How_To_Use || '';
+      document.getElementById('f-precautions').value = h.Precautions || '';
+      document.getElementById('f-informant').value = h.Informant || '';
+      document.getElementById('f-book-status').value = h.Book_Status || 'พร้อมพิมพ์ลงเล่ม';
+
+      document.getElementById('url-overall').value = h.Img_Overall || '';
+      document.getElementById('url-leaf').value = h.Img_Leaf || '';
+      document.getElementById('url-stemroot').value = h.Img_Stem_Root || '';
+      document.getElementById('url-flowerfruit').value = h.Img_Flower_Fruit || '';
+
+      document.getElementById('prev-overall').src = h.Img_Overall || PLACEHOLDER_IMG;
+      document.getElementById('prev-leaf').src = h.Img_Leaf || PLACEHOLDER_IMG;
+      document.getElementById('prev-stemroot').src = h.Img_Stem_Root || PLACEHOLDER_IMG;
+      document.getElementById('prev-flowerfruit').src = h.Img_Flower_Fruit || PLACEHOLDER_IMG;
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deleteHerb(herbId) {
+      if (!confirm(`ยืนยันการลบข้อมูลสมุนไพรรหัส ${herbId} ใช่หรือไม่?`)) return;
+      showLoading('กำลังลบข้อมูล...');
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'deleteHerb', pin: adminPin, herbId: herbId })
+        });
+        const result = await res.json();
+        alert(result.message);
+        await fetchDatabase();
+      } catch (err) {
+        alert('ลบข้อมูลไม่สำเร็จ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function resetAdminForm() {
+      document.getElementById('herb-form').reset();
+      document.getElementById('form-title').textContent = '➕ เพิ่มข้อมูลสมุนไพรใหม่';
+      document.getElementById('display-herb-id').textContent = 'สร้างรหัสอัตโนมัติ (KSN-XXX)';
+      document.getElementById('f-herb-id').value = '';
+      document.getElementById('url-overall').value = '';
+      document.getElementById('url-leaf').value = '';
+      document.getElementById('url-stemroot').value = '';
+      document.getElementById('url-flowerfruit').value = '';
+
+      pendingBase64 = { Overall: '', Leaf: '', Stem_Root: '', Flower_Fruit: '' };
+      document.getElementById('prev-overall').src = PLACEHOLDER_IMG;
+      document.getElementById('prev-leaf').src = PLACEHOLDER_IMG;
+      document.getElementById('prev-stemroot').src = PLACEHOLDER_IMG;
+      document.getElementById('prev-flowerfruit').src = PLACEHOLDER_IMG;
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('admin-table-body');
+      if (allHerbs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">ยังไม่มีข้อมูลสมุนไพร</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = allHerbs.map(h => `
+        <tr class="hover:bg-gray-50">
+          <td class="py-2.5 px-3 font-mono text-xs font-bold text-emerald-800">${h.Herb_ID}</td>
+          <td class="py-2.5 px-3 font-medium">${h.Name_Hmong_TH} ${h.Name_Hmong_RPA ? `<span class="text-xs text-gray-500">(${h.Name_Hmong_RPA})</span>` : ''}</td>
+          <td class="py-2.5 px-3">${h.Name_Thai || '-'}</td>
+          <td class="py-2.5 px-3"><span class="text-xs bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded">${h.Category_Main}</span></td>
+          <td class="py-2.5 px-3 text-xs">${h.Book_Status || 'พร้อมพิมพ์ลงเล่ม'}</td>
+          <td class="py-2.5 px-3 text-right space-x-1">
+            <button onclick="editHerb('${h.Herb_ID}')" class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded hover:bg-amber-200 text-xs font-semibold">แก้ไข</button>
+            <button onclick="deleteHerb('${h.Herb_ID}')" class="px-2.5 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-semibold">ลบ</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // ==========================================
+    // 🖨️ ระบบจัดหน้าพิมพ์สารานุกรม A4 (1 หน้า / 1 ชนิด)
+    // ==========================================
+    function printEncyclopedia(singleHerbId = null) {
+      let printList = [];
+      if (singleHerbId) {
+        printList = allHerbs.filter(h => h.Herb_ID === singleHerbId);
+      } else {
+        // กรองเฉพาะตัวที่สถานะ "พร้อมพิมพ์ลงเล่ม"
+        printList = allHerbs.filter(h => !h.Book_Status || h.Book_Status.includes('พร้อมพิมพ์'));
+      }
+
+      if (printList.length === 0) {
+        alert('ยังไม่มีข้อมูลสมุนไพรที่พร้อมพิมพ์ลงเล่ม กรุณาเพิ่มข้อมูลสมุนไพรก่อนครับ');
+        return;
+      }
+
+      const container = document.getElementById('print-book-container');
+      container.innerHTML = printList.map((h, index) => `
+        <div class="a4-page">
+          <!-- ส่วนหัวกระดาษ A4 -->
+          <div>
+            <div class="flex justify-between items-center border-b-2 border-emerald-800 pb-2 mb-3">
+              <div>
+                <p class="text-xs font-bold text-emerald-800 uppercase tracking-wider">สารานุกรมสมุนไพรพื้นบ้านชาวม้ง • ${villageName}</p>
+                <h1 class="text-2xl font-bold text-gray-900 mt-0.5">
+                  ${h.Name_Hmong_TH || '-'} 
+                  ${h.Name_Hmong_RPA ? `<span class="text-lg font-normal text-emerald-800">(${h.Name_Hmong_RPA})</span>` : ''}
+                </h1>
+                <p class="text-sm text-gray-700"><strong>ชื่อภาษาไทย / คำเมือง:</strong> ${h.Name_Thai || '-'}</p>
+              </div>
+              <div class="text-right">
+                <span class="inline-block bg-emerald-800 text-white font-mono text-sm font-bold px-3 py-1 rounded">
+                  รหัส: ${h.Herb_ID}
+                </span>
+                <p class="text-xs text-gray-600 mt-1"><strong>หมวด:</strong> ${h.Category_Main || '-'}</p>
+              </div>
+            </div>
+
+            <!-- กรอบรูปภาพ 4 มุม (1 รูปใหญ่ + 3 รูปแยกส่วน) -->
+            <div class="grid grid-cols-3 gap-2.5 mb-3">
+              <div class="col-span-2 border rounded-lg overflow-hidden bg-gray-50">
+                <img src="${h.Img_Overall || PLACEHOLDER_IMG}" class="w-full h-64 object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+                <div class="text-center text-xs font-bold py-1 bg-emerald-50 text-emerald-900 border-t">1. ลักษณะต้นโดยรวม</div>
+              </div>
+              <div class="col-span-1 flex flex-col justify-between gap-2">
+                <div class="border rounded-lg overflow-hidden bg-gray-50">
+                  <img src="${h.Img_Leaf || PLACEHOLDER_IMG}" class="w-full h-20 object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+                  <div class="text-center text-[10px] font-bold py-0.5 bg-gray-100">2. ลักษณะใบ</div>
+                </div>
+                <div class="border rounded-lg overflow-hidden bg-gray-50">
+                  <img src="${h.Img_Stem_Root || PLACEHOLDER_IMG}" class="w-full h-20 object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+                  <div class="text-center text-[10px] font-bold py-0.5 bg-gray-100">3. ลำต้น / ราก / หัว</div>
+                </div>
+                <div class="border rounded-lg overflow-hidden bg-gray-50">
+                  <img src="${h.Img_Flower_Fruit || PLACEHOLDER_IMG}" class="w-full h-20 object-cover" onerror="this.src='${PLACEHOLDER_IMG}'">
+                  <div class="text-center text-[10px] font-bold py-0.5 bg-gray-100">4. ดอก / ผล / เมล็ด</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ข้อมูลทางพฤกษศาสตร์และส่วนที่ใช้ -->
+            <div class="grid grid-cols-3 gap-2 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-xs mb-3">
+              <div><strong>ประเภทพืช:</strong> ${h.Plant_Type || '-'}</div>
+              <div><strong>ส่วนที่ใช้ทำยา:</strong> ${h.Parts_Used || '-'}</div>
+              <div><strong>อาการที่รักษา:</strong> ${h.Symptom_Tags || '-'}</div>
+            </div>
+
+            <!-- สรรพคุณและวิธีใช้ -->
+            <div class="border border-gray-300 rounded-lg p-3 mb-3 bg-white">
+              <h3 class="text-sm font-bold text-emerald-900 border-b pb-1 mb-1.5">🍵 ตำรับยา สรรพคุณ และวิธีการนำไปใช้</h3>
+              <p class="text-xs leading-relaxed whitespace-pre-line">${h.How_To_Use || '-'}</p>
+            </div>
+
+            <!-- ข้อควรระวัง -->
+            <div class="border border-red-300 rounded-lg p-2.5 bg-red-50/50">
+              <h3 class="text-xs font-bold text-red-800 mb-0.5">⚠️ ข้อควรระวัง / ข้อห้ามใช้:</h3>
+              <p class="text-xs text-red-900 whitespace-pre-line">${h.Precautions || 'ไม่มีข้อห้ามระบุไว้ (ควรใช้ในปริมาณที่เหมาะสม)'}</p>
+            </div>
+          </div>
+
+          <!-- ส่วนท้ายกระดาษ A4 (Footer) -->
+          <div class="border-t border-gray-300 pt-2 flex justify-between items-center text-[11px] text-gray-600">
+            <span><strong>ผู้ให้ข้อมูลภูมิปัญญา:</strong> ${h.Informant || 'ปราชญ์ชาวบ้าน หมู่ 5 บ้านขุนสาใน'}</span>
+            <span><strong>วันที่บันทึก:</strong> ${h.Updated_At || '-'}</span>
+            <span class="font-bold text-emerald-900">หน้า ${index + 1} / ${printList.length}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // รอให้รูปโหลดแป๊บนึงแล้วเปิดหน้าต่างสั่ง Print A4
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    }
+
+    function showLoading(text) {
+      document.getElementById('loading-text').textContent = text;
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
